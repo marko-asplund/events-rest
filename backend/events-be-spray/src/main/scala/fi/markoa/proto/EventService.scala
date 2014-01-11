@@ -5,6 +5,9 @@ import spray.routing._
 import spray.http._
 import MediaTypes._
 import spray.json.DefaultJsonProtocol
+import scala.util._
+import scala.concurrent.ExecutionContext
+import ExecutionContext.Implicits.global
 
 import java.util.Date
 import java.text.SimpleDateFormat
@@ -19,18 +22,15 @@ class EventServiceActor extends Actor with EventService {
   def receive = runRoute(myRoute)
 }
 
-case class Event(id: String, title: String, category: String, description: Option[String],
-    startTime: Date, duration: Int)
-
 trait MyJsonProtocol extends DefaultJsonProtocol {
-// FIXME: perf, thread-safety, yoda?, error handling
-implicit object DateJsonFormat extends JsonFormat[Date] {
+  // FIXME: perf, thread-safety, yoda?, error handling
+  implicit object DateJsonFormat extends JsonFormat[Date] {
     val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-    def write(x: Date) = JsString(df.format(x))
-    def read(value: JsValue) = value match {
+	def write(x: Date) = JsString(df.format(x))
+	def read(value: JsValue) = value match {
       case JsString(x) => df.parse(x.replace("Z", "+0000"))
       case x => spray.json.deserializationError("Expected String as JsString, but got " + x)
-    }
+	}
   }
 }
     
@@ -42,27 +42,31 @@ import MyJsonProtocol._
 import spray.httpx.SprayJsonSupport._
 
 trait EventService extends HttpService {
+  val eventDAO = EventDAO()
   val myRoute =
     path("events") {
       get {
-        respondWithMediaType(`text/plain`) {
-          complete {
-            "get"
+        respondWithMediaType(`application/json`) {
+          onComplete(eventDAO.list) {
+            case Success(l) => { complete(l) }
+            case Failure(ex) => { complete("error: "+ex) }
           }
         }
       } ~
       post {
-        complete("post")
+        entity(as[Event]) { event =>
+          complete("post")
+        }
       }
     } ~
     path("events" / IntNumber) { eventId =>
-      entity(as[Event]) { person => 
       put {
-        complete("put: "+eventId+", "+person)
+        entity(as[Event]) { event =>
+          complete("put: "+eventId+", "+event)
+        }
       } ~
       delete {
         complete("del: "+eventId)
-      }
       }
     }
 }
