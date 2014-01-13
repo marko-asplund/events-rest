@@ -48,21 +48,27 @@ trait EventService extends HttpService {
       get {
         respondWithMediaType(`application/json`) {
           onComplete(eventDAO.list) {
-            case Success(l) => { complete(l) }
-            case Failure(ex) => { complete("error: "+ex) }
+            case Success(r) => complete(r)
+            case Failure(ex) => complete("error: "+ex)
           }
         }
       } ~
       post {
         entity(as[Event]) { event =>
-          complete("post")
+          onComplete(eventDAO.create(event)) {
+            case Success(r) => complete(r)
+            case Failure(ex) => complete("error: "+ex)
+          }
         }
       }
     } ~
-    path("events" / IntNumber) { eventId =>
+    path("events" / Segment) { eventId =>
       put {
         entity(as[Event]) { event =>
-          complete("put: "+eventId+", "+event)
+          onComplete(eventDAO.update(event.id.get, event)) {
+            case Success(r) => complete("")
+            case Failure(ex) => complete("error: "+ex)
+          }
         }
       } ~
       delete {
