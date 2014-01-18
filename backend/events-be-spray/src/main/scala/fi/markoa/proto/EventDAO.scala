@@ -1,7 +1,7 @@
 package fi.markoa.proto
 
 import java.util.Date
-import com.datastax.driver.core.{Cluster, Session, Row, ResultSet, ResultSetFuture, BoundStatement};
+import com.datastax.driver.core.{Cluster, Session, Row, ResultSet, ResultSetFuture, BoundStatement, PreparedStatement};
 import com.datastax.driver.core.utils.UUIDs
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, TimeoutException}
@@ -19,27 +19,42 @@ trait EventDAOI {
   def list: Future[List[Event]]
 }
 
+class CassandraException(val message: String) extends Exception
+
 class EventDAO extends EventDAOI {
-  val cluster = Cluster.builder().addContactPoint("localhost").build()
-  val session = cluster.connect("events")
-  val createStmt1 = session.prepare("INSERT INTO event (id, title, category, startTime, duration) VALUES (?,?, ?, ?, ?)");
-  val createStmt2 = session.prepare("INSERT INTO event (id, title, category, startTime, duration, description) VALUES (?,?, ?, ?, ?, ?)");
-  val readStmt = session.prepare("SELECT * FROM event WHERE id = ?")
-  val deleteStmt = session.prepare("DELETE FROM event WHERE id = ?")
-  val listStmt = session.prepare("SELECT * FROM event")
+  val cass = init("localhost", "events")
+
+  class CassandraConnection(val cluster: Cluster, val session: Session, val statements: Map[String, PreparedStatement])
   
+  private def init(host: String, ks: String): CassandraConnection = {
+    try {
+      val cluster = Cluster.builder().addContactPoint(host).build()
+      val session = cluster.connect(ks)
+      val statements = Map("create1" -> session.prepare("INSERT INTO event (id, title, category, startTime, duration) VALUES (?,?, ?, ?, ?)"),
+          "create2" -> session.prepare("INSERT INTO event (id, title, category, startTime, duration, description) VALUES (?,?, ?, ?, ?, ?)"),
+          "read" -> session.prepare("SELECT * FROM event WHERE id = ?"),
+          "delete" -> session.prepare("DELETE FROM event WHERE id = ?"),
+          "list" -> session.prepare("SELECT * FROM event")
+          )
+          new CassandraConnection(cluster, session, statements)
+    } catch {
+      case ex: Exception => throw new CassandraException("failed to initialize Cassandra connection")
+    }
+  }
+  
+
   def create(e: Event): Future[String] = {
     val id = UUIDs.random()
     createOrUpdate(id, e, (rs: ResultSet) => id.toString())
   }
   
   private def createOrUpdate[T](id: UUID, e: Event, t: ResultSet => T): Future[T] = {
-    var ps: BoundStatement =
+    val ps: BoundStatement =
       if(e.description == null)
-        createStmt1.bind(id, e.title, e.category, e.startTime, new Integer(e.duration))
+        cass.statements("create1").bind(id, e.title, e.category, e.startTime, new Integer(e.duration))
       else
-        createStmt2.bind(id, e.title, e.category, e.startTime, new Integer(e.duration))
-    FutureAdapter(session.executeAsync(ps), t)
+        cass.statements("create2").bind(id, e.title, e.category, e.startTime, new Integer(e.duration))
+    FutureAdapter(cass.session.executeAsync(ps), t)
   }
 
   def read(id: String): Event  = {
@@ -55,7 +70,7 @@ class EventDAO extends EventDAOI {
   
   def list: Future[List[Event]] = {
     val t = (rs: ResultSet) => for(r <- rs.all().asScala.toList) yield eventFromRow(r)
-    FutureAdapter(session.executeAsync(listStmt.bind()), t)
+    FutureAdapter(cass.session.executeAsync(cass.statements("list").bind()), t)
   }
   
   private def eventFromRow(r: Row): Event = {
