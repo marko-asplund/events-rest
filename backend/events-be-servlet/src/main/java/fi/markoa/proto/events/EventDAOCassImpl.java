@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.utils.UUIDs;
+import com.google.common.base.Function;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 public class EventDAOCassImpl {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EventDAOCassImpl.class);
@@ -51,14 +54,21 @@ public class EventDAOCassImpl {
 	public void delete(String id) {
 	}
 	
-	public List<Event> list() {
-		List<Event> l = new ArrayList<>();
-		ResultSet rs = session.execute(statements.get("list").bind());
-		for(Row r : rs.all()) {
-			l.add(eventFromRow(r));
-		}
-		LOGGER.debug("list: "+l);
-		return l;
+	public ListenableFuture<List<Event>> list() {
+	  LOGGER.debug("list()");
+    Function<ResultSet, List<Event>> transformation =
+        new Function<ResultSet, List<Event>>() {
+      public List<Event> apply(ResultSet queryResult) {
+        LOGGER.debug("transform()");
+        List<Event> events = new ArrayList<>();
+        for(Row r : queryResult.all()) {
+          events.add(eventFromRow(r));
+        }
+        return events;
+      }
+    };    
+		ResultSetFuture rsf = session.executeAsync(statements.get("list").bind());
+		return Futures.transform(rsf, transformation);
 	}
 	
 	private Event eventFromRow(Row r) {
