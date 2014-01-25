@@ -30,19 +30,19 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * JAX-RS 2 resource class implementing a RESTful interface for events.
- * 
+ *
  * @author marko asplund
  */
 @Path("events")
 public class EventsResource {
-	private static final Logger LOGGER = LoggerFactory.getLogger(EventsResource.class);
-	private EventDAO eventDAO;
-	
-	public EventsResource(@Context ServletContext ctx) {
-		LOGGER.debug("EventsResource: "+ctx);
-		eventDAO = (EventDAO) ctx.getAttribute("eventDAO");
-		LOGGER.debug("ctx: "+eventDAO);
-	}
+  private static final Logger LOGGER = LoggerFactory.getLogger(EventsResource.class);
+  private EventDAO eventDAO;
+
+  public EventsResource(@Context ServletContext ctx) {
+    LOGGER.debug("EventsResource: "+ctx);
+    eventDAO = (EventDAO) ctx.getAttribute("eventDAO");
+    LOGGER.debug("ctx: "+eventDAO);
+  }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
@@ -51,7 +51,7 @@ public class EventsResource {
     LOGGER.debug("create "+e);
     addResponseCallback(eventDAO.create(e), ar);
   }
-  
+
   @GET
   @Path("/{id}")
   @Produces(MediaType.APPLICATION_JSON)
@@ -59,7 +59,7 @@ public class EventsResource {
     LOGGER.debug("read "+id);
     addResponseCallback(eventDAO.read(id), ar);
   }
-  
+
   @PUT
   @Path("/{id}")
   @Consumes(MediaType.APPLICATION_JSON)
@@ -67,7 +67,7 @@ public class EventsResource {
     LOGGER.debug("update "+id);
     addResponseCallback(eventDAO.update(id, e), ar);
   }
-  
+
   @DELETE
   @Path("/{id}")
   public void delete(@PathParam("id") String id, @Suspended AsyncResponse ar) {
@@ -81,18 +81,18 @@ public class EventsResource {
     LOGGER.debug("listEvents");
     addResponseCallback(eventDAO.list(), ar);
   }
-  
-	private <T> void addResponseCallback(ListenableFuture<T> f, final AsyncResponse ar) {
-	  Futures.addCallback(f, new FutureCallback<T>() {
-	    @Override
-	    public void onFailure(Throwable exception) {
-	      ar.resume(Response.status(Response.Status.INTERNAL_SERVER_ERROR).build());
-	    }
-	    @Override
-	    public void onSuccess(T result) {
-	      LOGGER.debug("onSuccess");
-	      ar.resume(result);
-	    }
-	  });
-	}
+
+  private <T> void addResponseCallback(ListenableFuture<T> f, final AsyncResponse ar) {
+    Futures.addCallback(f, new FutureCallback<T>() {
+      @Override
+      public void onFailure(Throwable exception) {
+        ar.resume(Response.status(Response.Status.INTERNAL_SERVER_ERROR).build());
+      }
+      @Override
+      public void onSuccess(T result) {
+        LOGGER.debug("onSuccess");
+        ar.resume(result);
+      }
+    });
+  }
 }
