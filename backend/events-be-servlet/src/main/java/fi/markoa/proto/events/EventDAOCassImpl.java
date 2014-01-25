@@ -11,13 +11,19 @@ import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-public class EventDAOCassImpl {
+/**
+ * Event data access object implementation for Cassandra.
+ *
+ * @author marko asplund
+ */
+public class EventDAOCassImpl implements EventDAO {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EventDAOCassImpl.class);
 	private Cluster cluster;
 	private Session session;
 	private Map<String, PreparedStatement> statements;
 	
-	public void init() {
+	@Override
+  public void init() {
 		LOGGER.debug("init()");
 		cluster = Cluster.builder().addContactPoint("localhost").build();
 		session = cluster.connect("events");
@@ -31,56 +37,88 @@ public class EventDAOCassImpl {
 		statements = Collections.unmodifiableMap(stmts);
 	}
 	
-	public String create(Event e) {
-		UUID id = UUIDs.random();
-		
-		BoundStatement bs = null;
-		if(e.getDescription() == null)
-			bs = statements.get("create1").bind(id, e.getTitle(), e.getCategory(), e.getStartTime(), new Integer(e.getDuration()));
-		else
-			bs = statements.get("create2").bind(id, e.getTitle(), e.getCategory(), e.getStartTime(), new Integer(e.getDuration()));
-		ResultSetFuture rs = session.executeAsync(bs);
+	@Override
+  public ListenableFuture<String> create(Event e) {
+    final UUID id = UUIDs.random();
+    Function<ResultSet, String> transformation = new Function<ResultSet, String>() {
+      public String apply(ResultSet rs) {
+        return id.toString();
+      }
+    };
 
-		return null;
+    return createOrUpdate(id, e, transformation);
 	}
 	
-	public Event read(String id) {
-		return null;
+	@Override
+  public ListenableFuture<Event> read(String id) {
+    Function<ResultSet, Event> transformation = new Function<ResultSet, Event>() {
+      public Event apply(ResultSet rs) {
+        return eventFromRow(rs.one());
+      }
+    };
+
+    ResultSetFuture rsf = session.executeAsync(statements.get("read").bind(UUID.fromString(id)));
+    return Futures.transform(rsf, transformation);
 	}
 	
-	public void update(String id, Event event) {
+	@Override
+  public ListenableFuture<Void> update(String id, Event e) {
+    Function<ResultSet, Void> transformation = new Function<ResultSet, Void>() {
+      public Void apply(ResultSet rs) {
+        return null;
+      }
+    };
+	  return createOrUpdate(UUID.fromString(id), e, transformation);
 	}
 	
-	public void delete(String id) {
+	// TODO: how to determine if the event was found and successfully executed?
+	@Override
+  public ListenableFuture<Void> delete(final String id) {
+    final ResultSetFuture rsf = session.executeAsync(statements.get("delete").bind(UUID.fromString(id)));
+	  Function<ResultSet, Void> transformation = new Function<ResultSet, Void>() {
+      public Void apply(ResultSet rs) {
+        return null;
+      }
+    };
+    return Futures.transform(rsf, transformation);
 	}
 	
-	public ListenableFuture<List<Event>> list() {
-	  LOGGER.debug("list()");
-    Function<ResultSet, List<Event>> transformation =
-        new Function<ResultSet, List<Event>>() {
-      public List<Event> apply(ResultSet queryResult) {
-        LOGGER.debug("transform()");
+	@Override
+  public ListenableFuture<List<Event>> list() {
+    Function<ResultSet, List<Event>> transformation = new Function<ResultSet, List<Event>>() {
+      public List<Event> apply(ResultSet rs) {
         List<Event> events = new ArrayList<>();
-        for(Row r : queryResult.all()) {
+        for(Row r : rs.all()) {
           events.add(eventFromRow(r));
         }
         return events;
       }
-    };    
+    };
 		ResultSetFuture rsf = session.executeAsync(statements.get("list").bind());
 		return Futures.transform(rsf, transformation);
 	}
 	
+  @Override
+  public void destroy() {
+    LOGGER.debug("destroy()");
+    session.shutdown();
+    cluster.shutdown();
+  }
+
 	private Event eventFromRow(Row r) {
 		return new Event(r.getUUID("id").toString(), r.getString("title"), r.getString("category"), r.getString("description"),
-				r.getDate("startTime"), r.getInt("duration")
-				);
+				r.getDate("startTime"), r.getInt("duration"));
 	}
 	
-	public void destroy() {
-		LOGGER.debug("destroy()");
-		session.shutdown();
-		cluster.shutdown();
-	}
+  private <T> ListenableFuture<T> createOrUpdate(final UUID id, Event e, Function<ResultSet, T> transformation) {
+    BoundStatement bs = null;
+    if(e.getDescription() == null)
+      bs = statements.get("create1").bind(id, e.getTitle(), e.getCategory(), e.getStartTime(), new Integer(e.getDuration()));
+    else
+      bs = statements.get("create2").bind(id, e.getTitle(), e.getCategory(), e.getStartTime(), new Integer(e.getDuration()));
+    ResultSetFuture rsf = session.executeAsync(bs);
+    return Futures.transform(rsf, transformation);
+  }
+
 
 }

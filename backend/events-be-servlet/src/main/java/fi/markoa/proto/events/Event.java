@@ -2,6 +2,11 @@ package fi.markoa.proto.events;
 
 import java.util.Date;
 
+/**
+ * Event domain object.
+ * 
+ * @author marko asplund
+ */
 public class Event {
 	private String id;
 	private String title;
@@ -9,6 +14,9 @@ public class Event {
 	private String description;
 	private Date startTime;
 	private int duration;
+	
+	public Event() {
+	}
 
 	public Event(String id, String title, String category, String description, Date startTime, int duration) {
 		super();
