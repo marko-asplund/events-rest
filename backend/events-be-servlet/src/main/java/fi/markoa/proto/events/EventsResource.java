@@ -23,8 +23,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
 // TODO
+//Java 8 + lambda
 // initialization: current model or JAX-RS Singleton?
-// Java 8 + lambda
 // Date format change?
 // Exception handling? jax-rs exception mapper?
 

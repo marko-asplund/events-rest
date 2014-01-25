@@ -7,6 +7,11 @@ import javax.servlet.annotation.WebListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * ServletContextListener for initializing and destroying EventDAO implementation.
+ * 
+ * @author marko asplund
+ */
 @WebListener
 public class ContextListener implements ServletContextListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ContextListener.class);
