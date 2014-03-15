@@ -77,8 +77,8 @@ public class EventDAOCassImpl implements EventDAO {
   @Override
   public void destroy() {
     LOGGER.debug("destroy()");
-    session.shutdown();
-    cluster.shutdown();
+    session.close();
+    cluster.close();
   }
 
   private Event eventFromRow(Row r) {
