@@ -1,6 +1,7 @@
 package fi.markoa.proto.events;
 
 import java.util.List;
+import java.util.Properties;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -11,7 +12,7 @@ import com.google.common.util.concurrent.ListenableFuture;
  * @author marko asplund
  */
 public interface EventDAO {
-  void init();
+  void init(Properties conf);
   void destroy();
 
   ListenableFuture<String> create(Event e);

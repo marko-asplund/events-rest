@@ -24,10 +24,10 @@ public class EventDAOCassImpl implements EventDAO {
   private Map<String, PreparedStatement> statements;
 
   @Override
-  public void init() {
+  public void init(Properties conf) {
     LOGGER.debug("init()");
-    cluster = Cluster.builder().addContactPoint("localhost").build();
-    session = cluster.connect("events");
+    cluster = Cluster.builder().addContactPoint(conf.getProperty("events.cassandra.host")).build();
+    session = cluster.connect(conf.getProperty("events.cassandra.keyspace"));
 
     Map<String, PreparedStatement> stmts = new HashMap<>();
     stmts.put("create1", session.prepare("INSERT INTO event (id, title, category, startTime, duration) VALUES (?,?, ?, ?, ?)"));
@@ -58,7 +58,6 @@ public class EventDAOCassImpl implements EventDAO {
     return createOrUpdate(UUID.fromString(id), e, transformation);
   }
 
-  // TODO: how to determine if the event was found and successfully executed?
   @Override
   public ListenableFuture<Void> delete(final String id) {
     final ResultSetFuture rsf = session.executeAsync(statements.get("delete").bind(UUID.fromString(id)));
