@@ -44,7 +44,8 @@ public class ContextListener implements ServletContextListener {
   public void contextDestroyed(ServletContextEvent sce) {
     LOGGER.debug("contextDestroyed: "+sce);
     EventDAO d = (EventDAO) sce.getServletContext().getAttribute("eventDAO");
-    d.destroy();
+    if(d != null)
+      d.destroy();
   }
 
 }

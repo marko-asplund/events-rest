@@ -26,7 +26,10 @@ public class EventDAOCassImpl implements EventDAO {
   @Override
   public void init(Properties conf) {
     LOGGER.debug("init()");
-    cluster = Cluster.builder().addContactPoint(conf.getProperty("events.cassandra.host")).build();
+    cluster = Cluster.builder()
+      .addContactPoint(conf.getProperty("events.cassandra.host"))
+      .withCredentials(conf.getProperty("events.cassandra.user"), conf.getProperty("events.cassandra.pwd"))
+      .build();
     session = cluster.connect(conf.getProperty("events.cassandra.keyspace"));
 
     Map<String, PreparedStatement> stmts = new HashMap<>();
