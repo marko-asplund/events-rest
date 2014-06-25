@@ -51,7 +51,7 @@ public class EventDAOCassImpl implements EventDAO {
   @Override
   public ListenableFuture<Event> read(String id) {
     Function<ResultSet, Event> transformation = (rs) -> eventFromRow(rs.one());
-    ResultSetFuture rsf = session.executeAsync(statements.get("read").bind(UUID.fromString(id)));
+    ResultSetFuture rsf = session.executeAsync(statements.get("read").bind(convertToUUID(id)));
     return Futures.transform(rsf, transformation);
   }
 
@@ -63,7 +63,7 @@ public class EventDAOCassImpl implements EventDAO {
 
   @Override
   public ListenableFuture<Void> delete(final String id) {
-    final ResultSetFuture rsf = session.executeAsync(statements.get("delete").bind(UUID.fromString(id)));
+    final ResultSetFuture rsf = session.executeAsync(statements.get("delete").bind(convertToUUID(id)));
     Function<ResultSet, Void> transformation = (rs) -> null;
     return Futures.transform(rsf, transformation);
   }
@@ -81,6 +81,14 @@ public class EventDAOCassImpl implements EventDAO {
     LOGGER.debug("destroy()");
     session.close();
     cluster.close();
+  }
+
+  private UUID convertToUUID(String uuid) {
+    try {
+      return UUID.fromString(uuid);
+    } catch (NumberFormatException ex) {
+      throw new EntityIdException(String.format("invalid id: %s", uuid), ex);
+    }
   }
 
   private Event eventFromRow(Row r) {
