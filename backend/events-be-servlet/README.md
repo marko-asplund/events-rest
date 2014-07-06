@@ -1,15 +1,16 @@
 
+# Asynchronous RESTful API with Java 8 Lambda and JAX-RS and Apache Cassandra
+
 design notes
+- leverage asynchronous and non-blocking APIs in all layers where applicable
+- use NoSQL storage engine
+- apply Java 8 lambdas
 - use Servlet 3.1 API + JAX-RS 2.0
-- don't use Spring framework
+- minimize other dependencies (don't e.g. CI etc. frameworks etc.)
 
-TODO
-- finalize and verify exception handling
-
-DONE
-- exception handling
-- Cassandra authentication
-- Cassandra access with Datastax driver (async API)
-- JSON marshalling / unmarshalling
-- JAX-RS async
-- Java 8 lambdas
+technologies and APIs
+- Servlet 3.1 API
+- JAX-RS 2.0 API
+- Jersey 2
+- Apache Cassandra 2
+- tested on Tomcat 8 / Jetty 9
